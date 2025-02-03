@@ -1,4 +1,4 @@
-import AtpAgent from "@atproto/api"
+import AtpAgent from "@atproto/api";
 export class RateLimitedAgent {
   private agent: AtpAgent;
   private waitingForRateLimit: boolean = false;
@@ -10,10 +10,14 @@ export class RateLimitedAgent {
   private async handleRateLimit(error: any): Promise<void> {
     if (error.status === 429) {
       this.waitingForRateLimit = true;
-      const resetTime = new Date(Number(error.headers['ratelimit-reset']) * 1000);
+      const resetTime = new Date(
+        Number(error.headers["ratelimit-reset"]) * 1000,
+      );
       const waitTime = resetTime.getTime() - Date.now();
-      console.log(`Rate limit exceeded. Waiting until ${resetTime.toLocaleString()} (${Math.ceil(waitTime / 1000)} seconds)`);
-      await new Promise(resolve => setTimeout(resolve, waitTime));
+      console.log(
+        `Rate limit exceeded. Waiting until ${resetTime.toLocaleString()} (${Math.ceil(waitTime / 1000)} seconds)`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
       this.waitingForRateLimit = false;
     } else {
       throw error;
@@ -25,7 +29,7 @@ export class RateLimitedAgent {
     while (true) {
       try {
         if (this.waitingForRateLimit) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
           continue;
         }
         return await method();
@@ -33,9 +37,9 @@ export class RateLimitedAgent {
         if (++attempts > 5) {
           throw error;
         }
-        if (error.message.includes('fetch failed')) {
+        if (error.message.includes("fetch failed")) {
           console.warn(`Fetch failed, retrying attempt ${attempts}/5...`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await new Promise((resolve) => setTimeout(resolve, 2000));
           continue;
         }
         if (error.status === 429) {
@@ -59,8 +63,14 @@ export class RateLimitedAgent {
     return this.call(() => this.agent.login(...args));
   }
 
-  async getServiceAuth(...args: Parameters<typeof AtpAgent.prototype.com.atproto.server.getServiceAuth>) {
-    return this.call(() => this.agent.com.atproto.server.getServiceAuth(...args));
+  async getServiceAuth(
+    ...args: Parameters<
+      typeof AtpAgent.prototype.com.atproto.server.getServiceAuth
+    >
+  ) {
+    return this.call(() =>
+      this.agent.com.atproto.server.getServiceAuth(...args),
+    );
   }
 
   get session() {

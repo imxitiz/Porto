@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Porto - Import your Tweets to Bluesky",
+  "version": "1.0.0",
+  "description": "A browser extension to import all your tweets to bluesky at a click of a button",
+  "action": {
+    "default_icon": "icon.png"
+  },
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "permissions": ["tabs", "activeTab"],
+  "icons": {
+    "32": "icon.png"
+  }
+}

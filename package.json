@@ -10,7 +10,10 @@
     "preview": "vite preview",
     "format": "prettier --write .",
     "lint": "eslint . --fix",
-    "test": "vitest"
+    "test": "vitest",
+    "release": "./release-package.sh",
+    "release:chrome": "TARGET_BROWSER=chrome ./release-package.sh",
+    "release:firefox": "TARGET_BROWSER=firefox ./release-package.sh"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
@@ -43,6 +46,7 @@
     "@radix-ui/react-label": "^2.1.0",
     "@radix-ui/react-popover": "^1.1.2",
     "@radix-ui/react-slot": "^1.1.0",
+    "@types/firefox-webext-browser": "^120.0.4",
     "browser-image-compression": "^2.0.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",

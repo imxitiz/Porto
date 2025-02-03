@@ -16,7 +16,14 @@ interface LoginFormProps {
   onVerificationCodeChange: (code: string) => void;
 }
 
-const LoginForm = ({ onLogin, error, isLoading, showTwoFactor, verificationCode, onVerificationCodeChange }: LoginFormProps) => {
+const LoginForm = ({
+  onLogin,
+  error,
+  isLoading,
+  showTwoFactor,
+  verificationCode,
+  onVerificationCodeChange,
+}: LoginFormProps) => {
   const [userName, setUserName] = useState("");
   const [password, setPassword] = useState("");
   const [showToolTip, setShowToolTip] = useState(false);
@@ -58,7 +65,9 @@ const LoginForm = ({ onLogin, error, isLoading, showTwoFactor, verificationCode,
                 <div
                   id="error"
                   className={`mt-1 text-sm border rounded-md p-2 flex gap-2 ${
-                    showTwoFactor ? "bg-yellow-100 border-yellow-400 text-yellow-600" : "bg-red-100 border-red-400 text-red-600"
+                    showTwoFactor
+                      ? "bg-yellow-100 border-yellow-400 text-yellow-600"
+                      : "bg-red-100 border-red-400 text-red-600"
                   }`}
                 >
                   <CgDanger className="flex-shrink-0 mt-1" />
@@ -144,8 +153,7 @@ const LoginForm = ({ onLogin, error, isLoading, showTwoFactor, verificationCode,
               Login
             </Button>
 
-            <button type="submit" disabled={isLoading}>
-      </button>
+            <button type="submit" disabled={isLoading}></button>
           </form>
         </CardContent>
       </Card>

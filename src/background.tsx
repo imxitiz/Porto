@@ -1,17 +1,20 @@
 /// <reference types="chrome" />
+/// <reference types="firefox-webext-browser" />
+
+const browserAPI = typeof chrome !== "undefined" ? chrome : browser;
 
 let windowId: number | null = null;
 
-chrome.action.onClicked.addListener(async () => {
+browserAPI.action.onClicked.addListener(async () => {
   if (windowId !== null) {
-    const window = await chrome.windows.get(windowId);
+    const window = await browserAPI.windows.get(windowId);
     if (window) {
-      chrome.windows.update(windowId, { focused: true });
+      browserAPI.windows.update(windowId, { focused: true });
       return;
     }
   }
 
-  const window = await chrome.windows.create({
+  const window = await browserAPI.windows.create({
     url: "index.html",
     type: "popup",
     width: 500,
@@ -23,17 +26,9 @@ chrome.action.onClicked.addListener(async () => {
   windowId = window.id || null;
 
   // Listen for window close
-  chrome.windows.onRemoved.addListener((removedWindowId) => {
+  browserAPI.windows.onRemoved.addListener((removedWindowId) => {
     if (removedWindowId === windowId) {
       windowId = null;
     }
   });
-});
-
-// Handle messages
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === "sayHello") {
-    console.log("Hello from the background script!");
-    sendResponse({ response: "Hello from background!" });
-  }
 });

@@ -42,10 +42,7 @@ export const isQuote = (tweets: Tweet[], id: string) => {
 };
 
 export const isPostValid = (tweet: Tweet["tweet"]) => {
-  if (
-    tweet.full_text.startsWith("@") ||
-    tweet.full_text.startsWith("RT ")
-  ) {
+  if (tweet.full_text.startsWith("@") || tweet.full_text.startsWith("RT ")) {
     return false;
   }
   return true;

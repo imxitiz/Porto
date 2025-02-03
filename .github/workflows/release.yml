@@ -2,44 +2,57 @@ name: Release Chrome Extension
 
 on:
   push:
-    branches: 
+    branches:
       - main
 
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Extract Extension Version
-      id: package-version
-      run: |
-        VERSION=$(grep '"version":' public/manifest.json | cut -d'"' -f4)
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-    
-    - name: Build extension
-      run: npm run build
-    
-    - name: Create ZIP package
-      run: |
-        cd dist
-        zip -r porto-extension-v${{ steps.package-version.outputs.version }}.zip .
-    
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: dist/porto-extension-v${{ steps.package-version.outputs.version }}.zip
-        tag_name: v${{ steps.package-version.outputs.version }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Extract Extension Version
+        id: package-version
+        run: |
+          CHROME_VERSION=$(grep '"version":' public/manifest.chrome.json | cut -d'"' -f4)
+          FIREFOX_VERSION=$(grep '"version":' public/manifest.firefox.json | cut -d'"' -f4)
+          COMBINED_VERSION="chrome-$CHROME_VERSION_firefox-$FIREFOX_VERSION"
+          echo "chrome_version=$CHROME_VERSION" >> $GITHUB_OUTPUT
+          echo "firefox_version=$FIREFOX_VERSION" >> $GITHUB_OUTPUT
+          echo "combined_version=$COMBINED_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Create ZIP package
+        run: |
+          cd dist
+          cp manifest.chrome.json manifest.json
+          zip -r porto-extension-v${{ steps.package-version.outputs.chrome_version }}.zip .
+
+      - name: Create XPI package
+        run: |
+          cd dist
+          cp manifest.firefox.json manifest.json
+          zip -r porto-extension-v${{ steps.package-version.outputs.firefox_version }}.xpi .
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/porto-extension-v${{ steps.package-version.outputs.chrome_version }}.zip
+            dist/porto-extension-v${{ steps.package-version.outputs.firefox_version }}.xpi
+          tag_name: v${{ steps.package-version.outputs.combined_version }}
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

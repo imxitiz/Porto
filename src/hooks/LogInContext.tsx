@@ -6,8 +6,8 @@ import { RateLimitedAgent } from "@/lib/rateLimit/RateLimitedAgent";
 // Create context with a default value
 export const LogInContext = createContext<LogInContextType>({
   loggedIn: false,
-  setLoggedIn: () => { },
-  signOut: () => { },
+  setLoggedIn: () => {},
+  signOut: () => {},
   agent: null,
 });
 

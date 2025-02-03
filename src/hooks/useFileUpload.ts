@@ -36,7 +36,8 @@ export const UseFileUpload = (initialFileState: TFileState) => {
     const tweetsFile = findFile("tweets.js");
     const accountFile = findFile("account.js");
     if (!tweetsFile) return;
-    if (!accountFile) console.log("Username is required but missing account.js file");
+    if (!accountFile)
+      console.log("Username is required but missing account.js file");
 
     const parentFolder = tweetsFile.webkitRelativePath
       .split("/")
