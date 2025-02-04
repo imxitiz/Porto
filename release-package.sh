@@ -3,11 +3,14 @@
 
 set -e  # Exit on first error
 
-# Clean previous build artifacts
-rm -rf dist proto*.zip proto*.xpi
+rm -rf dist
 
 # Run build command (assuming Bun + Vite)
 bun run build
+
+# Clean previous build artifacts
+rm -rf proto*.zip proto*.xpi
+rm -rf dist/manifest*.json
 
 # Function to package for a given browser
 package_extension() {
@@ -26,7 +29,7 @@ package_extension() {
   echo "Copied $manifest_source to dist/manifest.json"
 
   # Zip contents of dist/
-  zip -r "proto-${browser}.zip" dist/*
+  (cd dist && zip -r "../proto-${browser}.zip" ./*)
   echo "Created archive: proto-${browser}.zip"
 
   # If Firefox, create .xpi file
