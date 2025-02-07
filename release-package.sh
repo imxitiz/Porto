@@ -5,8 +5,7 @@ set -e  # Exit on first error
 
 rm -rf dist
 
-# Run build command (assuming Bun + Vite)
-bun run build
+npm run build
 
 # Clean previous build artifacts
 rm -rf porto*.zip porto*.xpi
