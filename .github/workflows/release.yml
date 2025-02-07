@@ -27,7 +27,7 @@ jobs:
         run: |
           CHROME_VERSION=$(grep '"version":' public/manifest.chrome.json | cut -d'"' -f4)
           FIREFOX_VERSION=$(grep '"version":' public/manifest.firefox.json | cut -d'"' -f4)
-          COMBINED_VERSION="chrome-$CHROME_VERSION_firefox-$FIREFOX_VERSION"
+          COMBINED_VERSION="c${CHROME_VERSION}-f${FIREFOX_VERSION}"
           echo "chrome_version=$CHROME_VERSION" >> $GITHUB_OUTPUT
           echo "firefox_version=$FIREFOX_VERSION" >> $GITHUB_OUTPUT
           echo "combined_version=$COMBINED_VERSION" >> $GITHUB_OUTPUT
@@ -41,4 +41,4 @@ jobs:
           files: |
             ./porto-chrome.zip
             ./porto-firefox.xpi
-          tag_name: v${{ steps.package-version.outputs.combined_version }}
+          tag_name: v-${{ steps.package-version.outputs.combined_version }}
