@@ -31,28 +31,14 @@ jobs:
           echo "chrome_version=$CHROME_VERSION" >> $GITHUB_OUTPUT
           echo "firefox_version=$FIREFOX_VERSION" >> $GITHUB_OUTPUT
           echo "combined_version=$COMBINED_VERSION" >> $GITHUB_OUTPUT
-
-      - name: Build extension
-        run: npm run build
-
-      - name: Create ZIP package
-        run: |
-          cd dist
-          cp manifest.chrome.json manifest.json
-          zip -r porto-extension-v${{ steps.package-version.outputs.chrome_version }}.zip .
-
-      - name: Create XPI package
-        run: |
-          cd dist
-          cp manifest.firefox.json manifest.json
-          zip -r porto-extension-v${{ steps.package-version.outputs.firefox_version }}.xpi .
-
+      
+      - name: Run packaging script
+        run: ./release-package.sh
+        
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/porto-extension-v${{ steps.package-version.outputs.chrome_version }}.zip
-            dist/porto-extension-v${{ steps.package-version.outputs.firefox_version }}.xpi
+            ./porto-chrome.zip
+            ./porto-firefox.xpi
           tag_name: v${{ steps.package-version.outputs.combined_version }}
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

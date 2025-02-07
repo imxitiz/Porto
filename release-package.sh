@@ -9,7 +9,7 @@ rm -rf dist
 bun run build
 
 # Clean previous build artifacts
-rm -rf proto*.zip proto*.xpi
+rm -rf porto*.zip porto*.xpi
 rm -rf dist/manifest*.json
 
 # Function to package for a given browser
@@ -29,13 +29,13 @@ package_extension() {
   echo "Copied $manifest_source to dist/manifest.json"
 
   # Zip contents of dist/
-  (cd dist && zip -r "../proto-${browser}.zip" ./*)
-  echo "Created archive: proto-${browser}.zip"
+  (cd dist && zip -r "../porto-${browser}.zip" ./*)
+  echo "Created archive: porto-${browser}.zip"
 
   # If Firefox, create .xpi file
   if [ "$browser" == "firefox" ]; then
-    mv "proto-${browser}.zip" "proto-${browser}.xpi"
-    echo "Packaged Firefox extension as proto-${browser}.xpi"
+    mv "porto-${browser}.zip" "porto-${browser}.xpi"
+    echo "Packaged Firefox extension as porto-${browser}.xpi"
   fi
 }
 
