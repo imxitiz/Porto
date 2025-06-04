@@ -10,6 +10,7 @@ npm run build
 # Clean previous build artifacts
 rm -rf porto*.zip porto*.xpi
 rm -rf dist/manifest*.json
+rm -rf dist/porto0.jpg dist/porto1.jpg dist/porto2.jpg dist/porto3.jpg
 
 # Function to package for a given browser
 package_extension() {
