@@ -170,7 +170,7 @@ export const useUpload = ({
     return accountJson.username;
   };
 
-  const tweet_to_bsky = async () => {
+  const tweet_to_bsky = async (selectedIds?: string[]) => {
     if (!agent) throw new Error("Agent not found");
     if (!fileMap.size) throw new Error("No files found");
 
@@ -189,14 +189,18 @@ export const useUpload = ({
         dateRange,
       );
 
+      const filteredTweets = selectedIds
+        ? validTweets.filter((t) => selectedIds.includes(t.tweet.id))
+        : validTweets;
+
       let importedTweet = 0;
       const handle = await getXHandle();
       console.log(handle);
       const twitterHandles = [handle.length !== 0 ? handle : "whoisanku"];
 
-      for (const [index, { tweet }] of validTweets.entries()) {
+      for (const [index, { tweet }] of filteredTweets.entries()) {
         try {
-          setProgress(Math.round((index / validTweets.length) * 100));
+          setProgress(Math.round((index / filteredTweets.length) * 100));
           if (cannotPost(tweet, tweets)) continue;
 
           const media = tweet.extended_entities?.media;
@@ -378,12 +382,11 @@ export const useUpload = ({
             );
           }
 
-          const { embeddedUrl = null, embeddedRecord = null } =
-            getEmbeddedUrlAndRecord(
-              twitterHandles,
-              tweet.entities?.urls,
-              validTweets,
-            );
+          const { embeddedUrl = null, embeddedRecord = null } = getEmbeddedUrlAndRecord(
+            twitterHandles,
+            tweet.entities?.urls,
+            filteredTweets,
+          );
 
           let replyTo: {} | null = null;
 
@@ -469,7 +472,7 @@ export const useUpload = ({
                 in_reply_to_screen_name: tweet.in_reply_to_screen_name,
                 in_reply_to_status_id: tweet.in_reply_to_status_id,
               },
-              validTweets,
+              filteredTweets
             );
           }
           let externalEmbed = null;
@@ -540,7 +543,7 @@ export const useUpload = ({
             embeddedRecord,
             externalEmbed,
             replyTo,
-            validTweets,
+            filteredTweets,
             index,
           ).then(() => {
             importedTweet++;
