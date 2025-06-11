@@ -26,7 +26,7 @@ const Login = () => {
         setLoggedIn(true);
         localStorage.setItem(
           "emailConfirmed",
-          String(user.data.emailConfirmed),
+          String(user.data.emailConfirmed)
         );
         console.info("User logged in successfully");
       }
@@ -40,7 +40,7 @@ const Login = () => {
       ) {
         setShowTwoFactor(true);
         setError(
-          "A sign-in code has been sent to your email. Please enter it below.",
+          "A sign-in code has been sent to your email. Please enter it below."
         );
       } else {
         setError("Invalid username or password");

@@ -25,7 +25,6 @@ export const LogInProvider = ({ children }: { children: React.ReactNode }) => {
     const validate = async () => {
       if (!agent) {
         try {
-          console.log("Validating user...");
           const { agent: baseAgent } = await ValidateUser(loggedIn);
 
           // Wrap the base agent with RateLimitedAgent
