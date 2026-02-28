@@ -1,16 +1,29 @@
 /// <reference types="chrome" />
-/// <reference types="firefox-webext-browser" />
 
-const browserAPI = typeof chrome !== "undefined" ? chrome : browser;
+// Use chrome namespace (works in both Chrome and Firefox MV3)
+const browserAPI =
+  typeof chrome !== "undefined" && chrome.runtime ? chrome : browser;
 
 let windowId: number | null = null;
 
+browserAPI.runtime.onInstalled.addListener((details) => {
+  if (details.reason === "install") {
+    browserAPI.tabs.create({
+      url: browserAPI.runtime.getURL("welcome.html"),
+    });
+  }
+});
+
 browserAPI.action.onClicked.addListener(async () => {
   if (windowId !== null) {
-    const window = await browserAPI.windows.get(windowId);
-    if (window) {
-      browserAPI.windows.update(windowId, { focused: true });
-      return;
+    try {
+      const window = await browserAPI.windows.get(windowId);
+      if (window) {
+        browserAPI.windows.update(windowId, { focused: true });
+        return;
+      }
+    } catch {
+      windowId = null;
     }
   }
 
@@ -31,4 +44,11 @@ browserAPI.action.onClicked.addListener(async () => {
       windowId = null;
     }
   });
+});
+
+// Handle messages
+browserAPI.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.action === "sayHello") {
+    sendResponse({ response: "Hello from background!" });
+  }
 });

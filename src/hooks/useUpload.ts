@@ -5,8 +5,6 @@ import {
   cleanTweetText,
   isPostValid,
   isQuote,
-  parseTweetsFile,
-  sortTweetsWithDateRange,
 } from "@/lib/parse/parse";
 import { TMedia, TEmbeddedImage, Tweet, VideoVariant } from "@/types/tweets";
 import { processTweetsData } from "@/lib/parse/processTweets";
@@ -15,14 +13,95 @@ import {
   fetchEmbedUrlCard,
   getEmbeddedUrlAndRecord,
 } from "@/components/utils";
-import { ApiDelay, BLUESKY_USERNAME } from "@/lib/constant";
-import AtpAgent, { AppBskyVideoDefs, BlobRef, RichText } from "@atproto/api";
+import { ApiDelay } from "@/lib/constant";
+import { AtpAgent, AppBskyVideoDefs, BlobRef, RichText } from "@atproto/api";
 import { findFileFromMap } from "@/lib/parse/parse";
 
 export const filePassableType = (fileType: string = ""): string => {
   if (fileType === "png") return "image/png";
   if (fileType === "jpg") return "image/jpeg";
   return "";
+};
+
+const MAX_POST_GRAPHEMES = 300;
+
+const countGraphemes = (text: string): number => {
+  if (!("Segmenter" in Intl)) return Array.from(text).length;
+  const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+  return Array.from(segmenter.segment(text)).length;
+};
+
+const splitHardByGraphemes = (text: string, maxGraphemes: number): string[] => {
+  if (text.length === 0) return [""];
+  if (!("Segmenter" in Intl)) {
+    const chunks: string[] = [];
+    for (let i = 0; i < text.length; i += maxGraphemes) {
+      chunks.push(text.slice(i, i + maxGraphemes));
+    }
+    return chunks.length ? chunks : [text];
+  }
+
+  const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+  const chunks: string[] = [];
+  let current = "";
+  let count = 0;
+
+  for (const part of segmenter.segment(text)) {
+    const seg = part.segment;
+    if (count + 1 > maxGraphemes) {
+      chunks.push(current);
+      current = seg;
+      count = 1;
+      continue;
+    }
+    current += seg;
+    count++;
+  }
+
+  if (current.length > 0) chunks.push(current);
+  return chunks.length ? chunks : [text];
+};
+
+// Prefer splitting at word boundaries so continuation threads are readable.
+const splitByWords = (text: string, maxGraphemes: number): string[] => {
+  const normalized = text.trim();
+  if (normalized.length === 0) return [""];
+  if (countGraphemes(normalized) <= maxGraphemes) return [normalized];
+
+  const tokens = normalized.match(/\S+\s*/g) ?? [normalized];
+  const chunks: string[] = [];
+  let current = "";
+  let currentCount = 0;
+
+  for (const rawToken of tokens) {
+    const token = current.length === 0 ? rawToken.trimStart() : rawToken;
+    const tokenCount = countGraphemes(token);
+
+    if (tokenCount > maxGraphemes) {
+      if (current.trim().length > 0) {
+        chunks.push(current.trimEnd());
+        current = "";
+        currentCount = 0;
+      }
+      const hardChunks = splitHardByGraphemes(token.trim(), maxGraphemes);
+      chunks.push(...hardChunks.map((c) => c.trimEnd()).filter(Boolean));
+      continue;
+    }
+
+    if (currentCount + tokenCount <= maxGraphemes) {
+      current += token;
+      currentCount += tokenCount;
+      continue;
+    }
+
+    if (current.trim().length > 0) chunks.push(current.trimEnd());
+    current = token.trimStart();
+    currentCount = countGraphemes(current);
+  }
+
+  if (current.trim().length > 0) chunks.push(current.trimEnd());
+
+  return chunks.length ? chunks : [normalized];
 };
 
 const cannotPost = (
@@ -77,6 +156,55 @@ export const useUpload = ({
     };
   };
 
+  const postSingleRecord = async ({
+    text,
+    createdAt,
+    embeddedImage,
+    embeddedVideo,
+    embeddedRecord,
+    externalEmbed,
+    replyTo,
+  }: {
+    text: string;
+    createdAt: string;
+    embeddedImage: TEmbeddedImage[];
+    embeddedVideo: any;
+    embeddedRecord: any;
+    externalEmbed: any;
+    replyTo: any;
+  }): Promise<{ uri: string; cid: string } | null> => {
+    if (!agent) return null;
+
+    const rt = new RichText({ text });
+    await rt.detectFacets(agent!.agent);
+
+    const postRecord: any = {
+      $type: "app.bsky.feed.post",
+      text: rt.text,
+      facets: rt.facets,
+      createdAt,
+    };
+
+    const embed = getMergeEmbed(embeddedImage, embeddedVideo, embeddedRecord);
+    if (embed && Object.keys(embed).length > 0) {
+      postRecord.embed = embed;
+    } else if (externalEmbed) {
+      postRecord.embed = externalEmbed;
+    }
+
+    if (replyTo && Object.keys(replyTo).length > 0) {
+      postRecord.reply = replyTo;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, ApiDelay));
+    try {
+      const recordData = await agent.post(postRecord);
+      return { uri: recordData.uri, cid: recordData.cid };
+    } catch {
+      return null;
+    }
+  };
+
   const createPostRecord = async (
     tweet: Tweet["tweet"],
     embeddedImage: TEmbeddedImage[],
@@ -85,50 +213,50 @@ export const useUpload = ({
     externalEmbed: any,
     replyTo: any,
     validTweets: any,
-    index: number,
+    index: number
   ) => {
     if (!agent) return;
-    let postText = await cleanTweetText(tweet.full_text);
 
-    if (postText.length > 300) postText = postText.substring(0, 296) + "...";
+    const postText = await cleanTweetText(tweet.full_text, tweet.entities);
+    const chunks = splitByWords(postText, MAX_POST_GRAPHEMES);
+    const createdAtBaseMs = new Date(tweet.created_at).getTime();
 
-    // rich texts
-    const rt = new RichText({ text: postText });
-    await rt.detectFacets(agent!.agent);
+    const rootRef = await postSingleRecord({
+      text: chunks[0] ?? "",
+      createdAt: new Date(createdAtBaseMs).toISOString(),
+      embeddedImage,
+      embeddedVideo,
+      embeddedRecord,
+      externalEmbed,
+      replyTo,
+    });
 
-    const tweetCreatedAt = new Date(tweet.created_at).toISOString();
+    if (!rootRef) return;
 
-    const postRecord = {
-      $type: "app.bsky.feed.post",
-      text: rt.text,
-      facets: rt.facets,
-      createdAt: tweetCreatedAt,
+    validTweets[index].bsky = {
+      uri: rootRef.uri,
+      cid: rootRef.cid,
     };
 
-    // Merge any additional embed data
-    const embed = getMergeEmbed(embeddedImage, embeddedVideo, embeddedRecord);
-    if (embed && Object.keys(embed).length > 0) {
-      Object.assign(postRecord, { embed });
-    } else if (externalEmbed) {
-      Object.assign(postRecord, { embed: externalEmbed });
-    }
+    if (chunks.length <= 1) return;
 
-    if (replyTo && Object.keys(replyTo).length > 0) {
-      Object.assign(postRecord, { reply: replyTo });
+    let parentRef = rootRef;
+    for (let i = 1; i < chunks.length; i++) {
+      const continuation = await postSingleRecord({
+        text: chunks[i] ?? "",
+        createdAt: new Date(createdAtBaseMs + i * 1000).toISOString(),
+        embeddedImage: [],
+        embeddedVideo: null,
+        embeddedRecord: null,
+        externalEmbed: null,
+        replyTo: {
+          root: { uri: rootRef.uri, cid: rootRef.cid },
+          parent: { uri: parentRef.uri, cid: parentRef.cid },
+        },
+      });
+      if (!continuation) break;
+      parentRef = continuation;
     }
-    await new Promise((resolve) => setTimeout(resolve, ApiDelay)); // Throttle API calls
-    try {
-      const recordData = await agent?.post(postRecord);
-      const i = recordData.uri.lastIndexOf("/");
-      if (i > 0) {
-        const postRkey = recordData?.uri.split("/").pop();
-        const postUri = `https://bsky.app/profile/${BLUESKY_USERNAME}.bsky.social/post/${postRkey}`;
-      }
-      validTweets[index].bsky = {
-        uri: recordData.uri,
-        cid: recordData.cid,
-      };
-    } catch (error: any) {}
   };
   const getXHandle = async () => {
     const findProfileFile = (fileName: string) => {
@@ -186,6 +314,7 @@ export const useUpload = ({
       const handle = await getXHandle();
 
       const twitterHandles = [handle.length !== 0 ? handle : "whoisanku"];
+      let videoUploadLimits: any | null = null;
 
       for (const [index, { tweet }] of filteredTweets.entries()) {
         try {
@@ -222,6 +351,35 @@ export const useUpload = ({
             if (!isEmailConfirmed) {
               setSkippedVideos((prev) => [...prev, tweet]);
             } else {
+              // Respect current upload limits (daily quotas, policy restrictions, etc).
+              if (!videoUploadLimits) {
+                try {
+                  const { data: svc } = await agent.getServiceAuth({
+                    aud: "did:web:video.bsky.app",
+                    lxm: "app.bsky.video.getUploadLimits",
+                    exp: Date.now() / 1000 + 60 * 30, // 30 minutes
+                  });
+                  const res = await fetch(
+                    "https://video.bsky.app/xrpc/app.bsky.video.getUploadLimits",
+                    {
+                      headers: {
+                        Authorization: `Bearer ${svc.token}`,
+                        Accept: "application/json",
+                      },
+                    }
+                  );
+                  videoUploadLimits = await res.json().catch(() => null);
+                } catch (error) {
+                  console.warn("Unable to fetch video upload limits:", error);
+                  videoUploadLimits = null;
+                }
+              }
+
+              if (videoUploadLimits?.canUpload === false) {
+                setSkippedVideos((prev) => [...prev, tweet]);
+                continue;
+              }
+
               const mediaItem = media[0];
               const highQualityVariant = mediaItem.video_info?.variants.find(
                 (variant: VideoVariant) =>
@@ -232,27 +390,30 @@ export const useUpload = ({
               if (highQualityVariant) {
                 const video_info = highQualityVariant.url;
 
-                const videoFileName = `${mediaLocation}/${tweet.id}-${video_info.split("/").pop()?.split("?")[0]}`;
+                const baseName = video_info.split("/").pop()?.split("?")[0];
+                const uploadName = `${tweet.id}-${baseName}`;
+                const videoFileName = `${mediaLocation}/${uploadName}`;
                 const videoFile = fileMap.get(videoFileName);
 
                 if (videoFile) {
-                  const { data: serviceAuth } =
-                    await agent!.com.atproto.server.getServiceAuth({
-                      aud: `did:web:${agent!.dispatchUrl.host}`,
-                      lxm: "com.atproto.repo.uploadBlob",
-                      exp: Date.now() / 1000 + 60 * 30, // 30 minutes
-                    });
+                  const pdsHost = await agent!.getPdsHost();
+                  const { data: serviceAuth } = await agent.getServiceAuth({
+                    aud: `did:web:${pdsHost}`,
+                    lxm: "com.atproto.repo.uploadBlob",
+                    exp: Date.now() / 1000 + 60 * 30, // 30 minutes
+                  });
 
                   const token = serviceAuth.token;
-                  const MAX_SINGLE_VIDEO_SIZE = 10 * 1024 * 1024 * 1024; // 10GB max size
+                  // Protocol limit: app.bsky.embed.video maxSize is 100_000_000 bytes (~100MB).
+                  const MAX_SINGLE_VIDEO_SIZE = 100 * 1024 * 1024;
 
                   // Check file size
                   if (videoFile.size > MAX_SINGLE_VIDEO_SIZE) {
                     throw new Error(
                       `File size (${(
                         videoFile.size /
-                        (1024 * 1024 * 1024)
-                      ).toFixed(2)}GB) exceeds maximum allowed size of 10GB`
+                        (1024 * 1024)
+                      ).toFixed(2)}MB) exceeds maximum allowed size of 100MB`
                     );
                   }
 
@@ -260,8 +421,8 @@ export const useUpload = ({
                   const uploadUrl = new URL(
                     "https://video.bsky.app/xrpc/app.bsky.video.uploadVideo"
                   );
-                  uploadUrl.searchParams.append("did", agent!.session!.did);
-                  uploadUrl.searchParams.append("name", videoFileName);
+                  uploadUrl.searchParams.append("did", agent.did);
+                  uploadUrl.searchParams.append("name", uploadName);
 
                   let uploadResponse: any;
                   let jobStatus: AppBskyVideoDefs.JobStatus;
@@ -415,7 +576,7 @@ export const useUpload = ({
             let root = parent;
             while (root?.tweet?.in_reply_to_status_id) {
               const nextRoot = tweets.find(
-                ({ tweet }) => tweet.id === root.tweet.in_reply_to_status_id,
+                ({ tweet }) => tweet.id === root.tweet.in_reply_to_status_id
               );
 
               if (!nextRoot) break;
