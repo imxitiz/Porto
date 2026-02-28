@@ -278,7 +278,10 @@
       const closeButton = document.getElementById("close-tab");
 
       openPortoButton?.addEventListener("click", () => {
-        window.location.href = chrome.runtime.getURL("index.html");
+        const api = (typeof chrome !== "undefined" && chrome.runtime) ? chrome : (typeof browser !== "undefined" ? browser : null);
+        if (api && api.runtime) {
+          window.location.href = api.runtime.getURL("index.html");
+        }
       });
 
       closeButton?.addEventListener("click", () => {

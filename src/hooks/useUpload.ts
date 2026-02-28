@@ -145,16 +145,16 @@ export const useUpload = ({
     const blobRecord = await agent?.uploadBlob(uint8Array, {
       encoding: mimeType,
     });
-	    return {
-	      alt: "",
-	      image: {
-	        $type: "blob",
-	        ref: blobRecord?.data.blob.ref,
-	        mimeType: blobRecord?.data.blob.mimeType,
-	        size: blobRecord?.data.blob.size,
-	      },
-	    };
-	  };
+    return {
+      alt: "",
+      image: {
+        $type: "blob",
+        ref: blobRecord?.data.blob.ref,
+        mimeType: blobRecord?.data.blob.mimeType,
+        size: blobRecord?.data.blob.size,
+      },
+    };
+  };
 
   const postSingleRecord = async ({
     text,
@@ -407,15 +407,15 @@ export const useUpload = ({
                   // Protocol limit: app.bsky.embed.video maxSize is 100_000_000 bytes (~100MB).
                   const MAX_SINGLE_VIDEO_SIZE = 100 * 1024 * 1024;
 
-	                  // Check file size
-	                  if (videoFile.size > MAX_SINGLE_VIDEO_SIZE) {
-	                    throw new Error(
-	                      `File size (${(
-	                        videoFile.size /
-	                        (1024 * 1024)
-	                      ).toFixed(2)}MB) exceeds maximum allowed size of 100MB`
-	                    );
-	                  }
+                  // Check file size
+                  if (videoFile.size > MAX_SINGLE_VIDEO_SIZE) {
+                    throw new Error(
+                      `File size (${(
+                        videoFile.size /
+                        (1024 * 1024)
+                      ).toFixed(2)}MB) exceeds maximum allowed size of 100MB`
+                    );
+                  }
 
                   // Prepare upload URL
                   const uploadUrl = new URL(
